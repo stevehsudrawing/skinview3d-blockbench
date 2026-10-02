@@ -12,7 +12,7 @@ import {
     SingleKeyframeListItem
 } from './types';
 
-import { Clock, Euler, Group, MathUtils, Object3D } from 'three';
+import { Clock, Euler, Group, MathUtils, Matrix4, Object3D } from 'three';
 import { catmullRom } from './lerp';
 import { defaultBonesOverrides, defaultPositions } from './defaults';
 
@@ -294,10 +294,27 @@ export class SkinViewBlockbench extends PlayerAnimation {
         this.torsoWrapper.add(torso);
 
         if (this.connectCape) {
-            const cape = new Group();
-            cape.attach(this.player.cape);
-            cape.position.y = -1;
-            this.player.skin.body.add(cape);
+            const capeWrapper = new Group();
+
+            // attach() decomposes the matrix, which re-expresses the cape's
+            // euler as an equivalent-but-flipped representation; capture the
+            // canonical rotation first and put it back afterwards.
+            const restRotation = this.player.cape.rotation.clone();
+            capeWrapper.attach(this.player.cape);
+            this.player.cape.rotation.copy(restRotation);
+
+            // Keep the cape's world pose under its new parent: the wrapper
+            // takes the inverse of the body's world transform.
+            this.player.skin.body.add(capeWrapper);
+            this.player.skin.body.updateWorldMatrix(true, false);
+            new Matrix4()
+                .copy(this.player.skin.body.matrixWorld)
+                .invert()
+                .decompose(
+                    capeWrapper.position,
+                    capeWrapper.quaternion,
+                    capeWrapper.scale
+                );
         }
     }
 
