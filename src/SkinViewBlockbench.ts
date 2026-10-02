@@ -280,7 +280,17 @@ export class SkinViewBlockbench extends PlayerAnimation {
         torso.attach(this.player.skin.rightArm);
         torso.attach(this.player.skin.body);
 
-        torso.position.y = 8;
+        // attach() bakes the world transforms into the children's locals;
+        // rewrite them with the rest positions every other code path uses
+        // (defaultPositions + keyframe delta), so rotation-only rigs start
+        // from the correct pose too.
+        this.player.skin.head.position.fromArray(defaultPositions.head);
+        this.player.skin.leftArm.position.fromArray(defaultPositions.leftArm);
+        this.player.skin.rightArm.position.fromArray(defaultPositions.rightArm);
+        this.player.skin.body.position.fromArray(defaultPositions.body);
+
+        // Stand in for the skin group's offset the children were moved out of.
+        torso.position.copy(this.player.skin.position);
         this.torsoWrapper.add(torso);
 
         if (this.connectCape) {
